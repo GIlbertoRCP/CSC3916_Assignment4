@@ -1,94 +1,152 @@
-/*
-CSC3916 HW4
-File: Server.js
-Description: Web API scaffolding for Movie API
- */
+require('dotenv').config(); 
 
-var express = require('express');
-var bodyParser = require('body-parser');
-var passport = require('passport');
-var authController = require('./auth');
-var authJwtController = require('./auth_jwt');
-var jwt = require('jsonwebtoken');
-var cors = require('cors');
-var User = require('./Users');
-var Movie = require('./Movies');
-var Review = require('./Reviews');
+const express = require('express');
+const bodyParser = require('body-parser');
+const passport = require('passport');
+const authJwtController = require('./auth_jwt'); 
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+const mongoose = require('mongoose'); 
+const User = require('./Users');
+const Movie = require('./Movies'); 
 
-var app = express();
+const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
 app.use(passport.initialize());
 
-var router = express.Router();
+const router = express.Router();
 
-function getJSONObjectForMovieRequirement(req) {
-    var json = {
-        headers: "No headers",
-        key: process.env.UNIQUE_KEY,
-        body: "No body"
-    };
+router.post('/signup', async (req, res) => { 
+  if (!req.body.username || !req.body.password) {
+    return res.status(400).json({ success: false, msg: 'Please include both username and password to signup.' }); 
+  }
 
-    if (req.body != null) {
-        json.body = req.body;
-    }
+  try {
+    const user = new User({ 
+      name: req.body.name,
+      username: req.body.username,
+      password: req.body.password,
+    });
 
-    if (req.headers != null) {
-        json.headers = req.headers;
-    }
-
-    return json;
-}
-
-router.post('/signup', function(req, res) {
-    if (!req.body.username || !req.body.password) {
-        res.json({success: false, msg: 'Please include both username and password to signup.'})
+    await user.save(); 
+    res.status(201).json({ success: true, msg: 'Successfully created new user.' }); 
+  } catch (err) {
+    if (err.code === 11000) { 
+      return res.status(409).json({ success: false, message: 'A user with that username already exists.' }); 
     } else {
-        var user = new User();
-        user.name = req.body.name;
-        user.username = req.body.username;
-        user.password = req.body.password;
+      console.error(err); 
+      return res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' }); 
+    }
+  }
+});
 
-        user.save(function(err){
-            if (err) {
-                if (err.code == 11000)
-                    return res.json({ success: false, message: 'A user with that username already exists.'});
-                else
-                    return res.json(err);
-            }
+router.post('/signin', async (req, res) => {
+    if (!req.body.username || !req.body.password) {
+        return res.status(400).json({ success: false, message: 'Please include both username and password to sign in.' });
+    }
 
-            res.json({success: true, msg: 'Successfully created new user.'})
-        });
+    try {
+        const user = await User.findOne({ username: req.body.username }).select('+password');
+        
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Authentication failed. User not found.' });
+        }
+        const isMatch = await user.comparePassword(req.body.password);
+        
+        if (isMatch) {
+            const token = jwt.sign(
+                { id: user._id, username: user.username }, 
+                process.env.SECRET_KEY, 
+                { expiresIn: '1h' } 
+            );
+            res.status(200).json({ success: true, token: 'jwt ' + token });
+        } else {
+            res.status(401).json({ success: false, message: 'Authentication failed. Wrong password.' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' });
     }
 });
 
-router.post('/signin', function (req, res) {
-    var userNew = new User();
-    userNew.username = req.body.username;
-    userNew.password = req.body.password;
-
-    User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
-        if (err) {
-            res.send(err);
+router.route('/movies')
+    .get(authJwtController.isAuthenticated, async (req, res) => {
+        try {
+            const movies = await Movie.find({});
+            res.status(200).json(movies);
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
         }
-
-        user.comparePassword(userNew.password, function(isMatch) {
-            if (isMatch) {
-                var userToken = { id: user.id, username: user.username };
-                var token = jwt.sign(userToken, process.env.SECRET_KEY);
-                res.json ({success: true, token: 'JWT ' + token});
-            }
-            else {
-                res.status(401).send({success: false, msg: 'Authentication failed.'});
-            }
-        })
     })
-});
+    .post(authJwtController.isAuthenticated, async (req, res) => {
+        if (!req.body.title || !req.body.actors || req.body.actors.length < 3) {
+            return res.status(400).json({ success: false, message: 'Movie must include a title and at least three actors.' });
+        }
+        try {
+            const movie = new Movie(req.body);
+            await movie.save();
+            res.status(201).json({ success: true, message: 'Movie created successfully.', movie: movie });
+        } catch (err) {
+            res.status(400).json({ success: false, message: err.message });
+        }
+    })
+    .put(authJwtController.isAuthenticated, (req, res) => {
+        res.status(405).json({ success: false, message: 'PUT request not supported on /movies' });
+    })
+    .delete(authJwtController.isAuthenticated, (req, res) => {
+        res.status(405).json({ success: false, message: 'DELETE request not supported on /movies' });
+    });
+
+router.route('/movies/:movieparameter')
+    .get(authJwtController.isAuthenticated, async (req, res) => {
+        try {
+            const movie = await Movie.findOne({ title: req.params.movieparameter });
+            if (!movie) return res.status(404).json({ success: false, message: 'Movie not found.' });
+            res.status(200).json(movie);
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
+        }
+    })
+    .post(authJwtController.isAuthenticated, (req, res) => {
+        res.status(405).json({ success: false, message: 'POST request not supported on /movies/:movieparameter' });
+    })
+    .put(authJwtController.isAuthenticated, async (req, res) => {
+        try {
+            const movie = await Movie.findOneAndUpdate(
+                { title: req.params.movieparameter },
+                req.body,
+                { new: true }
+            );
+            if (!movie) return res.status(404).json({ success: false, message: 'Movie not found.' });
+            res.status(200).json({ success: true, message: 'Movie updated successfully.', movie: movie });
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
+        }
+    })
+    .delete(authJwtController.isAuthenticated, async (req, res) => {
+        try {
+            const movie = await Movie.findOneAndDelete({ title: req.params.movieparameter });
+            if (!movie) return res.status(404).json({ success: false, message: 'Movie not found.' });
+            res.status(200).json({ success: true, message: 'Movie deleted successfully.' });
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
+        }
+    });
 
 app.use('/', router);
-app.listen(process.env.PORT || 8080);
-module.exports = app; // for testing only
 
+mongoose.connect(process.env.DB)
+    .then(() => {
+        console.log(" Connected to MongoDB successfully!");
+        const PORT = process.env.PORT || 8080; 
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error(" FATAL MongoDB connection error:", err);
+    });
 
+module.exports = app;
