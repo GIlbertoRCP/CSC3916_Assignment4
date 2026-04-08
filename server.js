@@ -47,9 +47,6 @@ function trackDimension(category, action, label, value, dimension, metric) {
     return rp(options);
 }
 
-// ---------------------------
-// AUTHENTICATION ROUTES
-// ---------------------------
 router.post('/signup', async (req, res) => {
     if (!req.body.username || !req.body.password) {
         return res.status(400).json({ success: false, msg: 'Please include both username and password to signup.' });
@@ -82,17 +79,20 @@ router.post('/signin', async (req, res) => {
             return res.status(401).json({ success: false, message: 'Authentication failed. User not found.' });
         }
         
-        const isMatch = await user.comparePassword(req.body.password);
-        if (isMatch) {
-            const token = jwt.sign(
-                { id: user._id, username: user.username },
-                process.env.SECRET_KEY,
-                { expiresIn: '1h' }
-            );
-            res.status(200).json({ success: true, token: 'jwt ' + token });
-        } else {
-            res.status(401).json({ success: false, message: 'Authentication failed. Wrong password.' });
-        }
+        user.comparePassword(req.body.password, function (err, isMatch) {
+            const matchResult = (typeof err === 'boolean') ? err : isMatch;
+
+            if (matchResult) {
+                const token = jwt.sign(
+                    { id: user._id, username: user.username },
+                    process.env.SECRET_KEY,
+                    { expiresIn: '1h' }
+                );
+                res.status(200).json({ success: true, token: 'jwt ' + token });
+            } else {
+                res.status(401).json({ success: false, message: 'Authentication failed. Wrong password.' });
+            }
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' });
