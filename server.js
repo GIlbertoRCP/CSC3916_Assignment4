@@ -223,13 +223,15 @@ router.route('/movies/:movieparameter')
 app.use('/', router);
 
 // Database Connection & Server Start
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
+// Database Connection (Happens in the background)
 mongoose.connect(process.env.DB)
     .then(() => {
         console.log("Connected to MongoDB successfully!");
-        const PORT = process.env.PORT || 8080;
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-        });
     })
     .catch((err) => {
         console.error("FATAL MongoDB connection error:", err);
