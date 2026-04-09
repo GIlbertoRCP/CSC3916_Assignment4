@@ -26,25 +26,41 @@ const router = express.Router();
 // Google Analytics 
 const GA_TRACKING_ID = process.env.GA_KEY;
 
-function trackDimension(category, action, label, value, dimension, metric) {
-    var options = {
-        method: 'GET',
-        url: 'https://www.google-analytics.com/collect',
-        qs: {
-            v: '1',
-            tid: GA_TRACKING_ID,
-            cid: crypto.randomBytes(16).toString("hex"),
-            t: 'event',
-            ec: category,
-            ea: action,
-            el: label,
-            ev: value,
-            cd1: dimension,
-            cm1: metric
-        },
-        headers: { 'Cache-Control': 'no-cache' }
+// Modern GA4 Measurement Protocol Implementation
+async function trackDimension(category, action, label, value, dimension, metric) {
+    const measurement_id = process.env.GA_KEY; 
+    const api_secret = process.env.GA_API_SECRET; 
+
+    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${measurement_id}&api_secret=${api_secret}`;
+
+    const payload = {
+        client_id: 'server-side-client', // Required static ID for server events
+        events: [{
+            name: 'movie_review', // The custom event name
+            params: {
+                genre: category,
+                action: action,
+                movie_title: dimension,
+                rating_value: value
+            }
+        }]
     };
-    return rp(options);
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            console.log('Successfully sent GA4 event');
+        } else {
+            console.error('Failed to send GA4 event');
+        }
+    } catch (error) {
+        console.error('Error sending GA4 event:', error);
+    }
 }
 
 router.post('/signup', async (req, res) => {
