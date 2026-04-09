@@ -1,0 +1,334 @@
+{
+  "info": {
+    "_postman_id": "78c8381d-7671-4aae-8ee1-8eaad4da181f",
+    "name": "CSC3916_Hwk4",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51781414",
+    "_collection_link": "https://go.postman.co/collection/51781414-78c8381d-7671-4aae-8ee1-8eaad4da181f?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "signup",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"gilberto\",\n  \"username\": \"homework2@test.com\",\n  \"password\": \"postmanPassword123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/signup",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "signup"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "signin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Parse response once",
+              "let jsonData = {};",
+              "try {",
+              "  jsonData = pm.response.json();",
+              "} catch (e) {",
+              "  jsonData = {};",
+              "}",
+              "",
+              "// Keep existing token-saving logic (env + collection)",
+              "if (jsonData && jsonData.success === true && jsonData.token) {",
+              "  pm.environment.set(\"jwt_token\", jsonData.token);",
+              "  pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+              "}",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"homework2@test.com\",\n  \"password\": \"postmanPassword123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/signin",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "signin"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "movie request",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Oppenheimer2\",\n  \"releaseDate\": 2023,\n  \"genre\": \"Drama\",\n  \"actors\": [\n    {\"actorName\": \"Cillian Murphy\", \"characterName\": \"J. Robert Oppenheimer\"},\n    {\"actorName\": \"Emily Blunt\", \"characterName\": \"Kitty Oppenheimer\"},\n    {\"actorName\": \"Robert Downey Jr.\", \"characterName\": \"Lewis Strauss\"}\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/movies",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "movie request - Missing Actors",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Oppenheimer\",\n  \"releaseDate\": 2023,\n  \"genre\": \"Drama\",\n  \"actors\": [\n    {\"actorName\": \"Cillian Murphy\", \"characterName\": \"J. Robert Oppenheimer\"},\n    {\"actorName\": \"Emily Blunt\", \"characterName\": \"Kitty Oppenheimer\"},\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/movies",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get all movies",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/movies",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update movie",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"releaseDate\": 2026}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/movies/Oppenheimer",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies",
+            "Oppenheimer"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "New Request",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"releaseDate\": 2026}"
+        },
+        "url": {
+          "raw": "{{url}}/movies/Oppenheimer",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies",
+            "Oppenheimer"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Save Reviews",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"movieId\": \"69bd03de56477ababdca7fc4\",\n    \"review\": \"This movie was fantastic! The acting was superb.\",\n    \"rating\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/reviews",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "reviews"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Invalid Save Review",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"movieId\": \"111111111111111111111111\", \n    \"review\": \"This should fail.\",\n    \"rating\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/reviews",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "reviews"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Valid Request with review Query Parameter",
+      "request": {
+        "method": "GET",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Valid Request with review Query Parameter Copy",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/movies/11111111",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "movies",
+            "11111111"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "Authorization",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "url",
+      "value": "https://csc3916-assignment3-kbgp.onrender.com"
+    },
+    {
+      "key": "jwt_token",
+      "value": "jwt eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YmNmZGQ4NTY0NzdhYmFiZGNhN2Y5ZiIsInVzZXJuYW1lIjoicG9zdG1hbkB0ZXN0LmNvbSIsImlhdCI6MTc3NTYxNTY1OCwiZXhwIjoxNzc1NjE5MjU4fQ.WMTa7Ixj9mNkgkpA4adMNnwSKWMwAu9UfIpUp3wh5gE"
+    }
+  ]
+}
