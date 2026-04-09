@@ -7,8 +7,6 @@ const authJwtController = require('./auth_jwt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const crypto = require("crypto");
-const rp = require('request-promise');
 
 // Models
 const User = require('./Users');
@@ -23,13 +21,13 @@ app.use(passport.initialize());
 
 const router = express.Router();
 
-// Google Analytics 
-const GA_TRACKING_ID = process.env.GA_KEY;
-
-// Modern GA4 Measurement Protocol Implementation
-async function trackDimension(category, action, label, value, dimension, metric) {
+// Google Analytics (Refactored without try/catch)
+function trackDimension(category, action, label, value, dimension, metric) {
     const measurement_id = process.env.GA_KEY; 
     const api_secret = process.env.GA_API_SECRET; 
+
+    // Safety check in case the env variables are missing
+    if (!measurement_id || !api_secret) return;
 
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${measurement_id}&api_secret=${api_secret}`;
 
@@ -46,21 +44,19 @@ async function trackDimension(category, action, label, value, dimension, metric)
         }]
     };
 
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
         if (response.ok) {
-            console.log('Successfully sent GA4 event');
+            console.log(`Successfully sent GA4 event for: ${dimension}`);
         } else {
             console.error('Failed to send GA4 event');
         }
-    } catch (error) {
-        console.error('Error sending GA4 event:', error);
-    }
+    })
+    .catch(error => console.error('Error sending GA4 event:', error));
 }
 
 router.post('/signup', async (req, res) => {
@@ -132,14 +128,15 @@ router.route('/reviews')
 
             await review.save();
 
+            // Calling our new try-catch-free tracking function
             trackDimension(
                 movie.genre || 'General',   
                 'POST /reviews',             
-                'API Request for Movie Review', // Label
-                '1',                         // Value
-                movie.title,                 // Custom Dimension: Movie Name
-                '1'                          // Custom Metric: Aggregated requests
-            ).catch(err => console.error("GA tracking failed:", err.message));
+                'API Request for Movie Review', 
+                '1',                         
+                movie.title,                 
+                '1'                          
+            );
 
             res.status(201).json({ message: 'Review created!' });
         } catch (err) {
@@ -187,10 +184,10 @@ router.route('/movies')
 router.route('/movies/:movieparameter')
     .get(authJwtController.isAuthenticated, async (req, res) => {
         try {
-            // Allows API to search by either MongoDB _id or exact Title string
             let matchCondition = {};
             if (mongoose.Types.ObjectId.isValid(req.params.movieparameter)) {
-                matchCondition = { _id: mongoose.Types.ObjectId(req.params.movieparameter) };
+                // FIX: Added 'new' keyword so Mongoose doesn't crash on lookup
+                matchCondition = { _id: new mongoose.Types.ObjectId(req.params.movieparameter) };
             } else {
                 matchCondition = { title: req.params.movieparameter };
             }
@@ -200,7 +197,7 @@ router.route('/movies/:movieparameter')
                     { $match: matchCondition },
                     {
                         $lookup: {
-                            from: "reviews", // Looks in the Reviews collection
+                            from: "reviews", 
                             localField: "_id", 
                             foreignField: "movieId", 
                             as: "reviews" 
@@ -228,14 +225,14 @@ app.use('/', router);
 // Database Connection & Server Start
 mongoose.connect(process.env.DB)
     .then(() => {
-        console.log(" Connected to MongoDB successfully!");
+        console.log("Connected to MongoDB successfully!");
         const PORT = process.env.PORT || 8080;
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
     })
     .catch((err) => {
-        console.error(" FATAL MongoDB connection error:", err);
+        console.error("FATAL MongoDB connection error:", err);
     });
 
 module.exports = app;
