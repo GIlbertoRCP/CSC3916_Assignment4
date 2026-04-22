@@ -154,75 +154,98 @@ router.route('/reviews')
 
 router.route('/movies')
     .get(authJwtController.isAuthenticated, async (req, res) => {
-    try {
-        const movies = await Movie.find({});
-        res.status(200).json(movies);
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
+        try {
+            // FIX: Added the aggregation logic to calculate averages and sort!
+            if (req.query.reviews === 'true') {
+                const aggregate = [
+                    {
+                        $lookup: {
+                            from: 'reviews',
+                            localField: '_id',
+                            foreignField: 'movieId',
+                            as: 'reviews'
+                        }
+                    },
+                    {
+                        $addFields: {
+                            avgRating: { $avg: '$reviews.rating' }
+                        }
+                    },
+                    {
+                        $sort: { avgRating: -1 } // Sorts highest to lowest
+                    }
+                ];
+                const movies = await Movie.aggregate(aggregate);
+                res.status(200).json(movies);
+            } else {
+                const movies = await Movie.find({});
+                res.status(200).json(movies);
+            }
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
+        }
     })
     .post(authJwtController.isAuthenticated, async (req, res) => {
-    if (!req.body.title || !req.body.actors || req.body.actors.length < 3) {
-        return res.status(400).json({ success: false, message: 'Movie must include a title and at least three actors.' });
-    }
-    try {
-        const movie = new Movie(req.body);
-        await movie.save();
-        res.status(201).json({ success: true, message: 'Movie created successfully.', movie: movie });
-    } catch (err) {
-        res.status(400).json({ success: false, message: err.message });
-    }
+        if (!req.body.title || !req.body.actors || req.body.actors.length < 3) {
+            return res.status(400).json({ success: false, message: 'Movie must include a title and at least three actors.' });
+        }
+        try {
+            const movie = new Movie(req.body);
+            await movie.save();
+            res.status(201).json({ success: true, message: 'Movie created successfully.', movie: movie });
+        } catch (err) {
+            res.status(400).json({ success: false, message: err.message });
+        }
     })
     .put(authJwtController.isAuthenticated, (req, res) => {
-    res.status(405).json({ success: false, message: 'PUT request not supported on /movies' });
+        res.status(405).json({ success: false, message: 'PUT request not supported on /movies' });
     })
     .delete(authJwtController.isAuthenticated, (req, res) => {
-    res.status(405).json({ success: false, message: 'DELETE request not supported on /movies' });
+        res.status(405).json({ success: false, message: 'DELETE request not supported on /movies' });
     });
 
-    router.route('/movies/search')
+// EXTRA CREDIT: Search Route
+router.route('/movies/search')
     .post(authJwtController.isAuthenticated, async (req, res) => {
-    const searchTerm = req.body.searchTerm;
-    if (!searchTerm) {
-        return res.status(400).json({ success: false, message: 'Please provide a searchTerm' });
-    }
+        const searchTerm = req.body.searchTerm;
+        if (!searchTerm) {
+            return res.status(400).json({ success: false, message: 'Please provide a searchTerm' });
+        }
 
-    try {
-        // Create a Case-Insensitive Regular Expression for partial matching
-        const regex = new RegExp(searchTerm, 'i');
+        try {
+            // Create a Case-Insensitive Regular Expression for partial matching
+            const regex = new RegExp(searchTerm, 'i');
 
-        const aggregate = [
-            {
-                $match: {
-                    $or: [
-                        { title: { $regex: regex } },
-                        { "actors.actorName": { $regex: regex } }
-                    ]
+            const aggregate = [
+                {
+                    $match: {
+                        $or: [
+                            { title: { $regex: regex } },
+                            { "actors.actorName": { $regex: regex } }
+                        ]
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'reviews',
+                        localField: '_id',
+                        foreignField: 'movieId',
+                        as: 'reviews'
+                    }
+                },
+                {
+                    $addFields: {
+                        avgRating: { $avg: '$reviews.rating' }
+                    }
                 }
-            },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'movieId',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    avgRating: { $avg: '$reviews.rating' }
-                }
-            }
-        ];
+            ];
 
-        const movies = await Movie.aggregate(aggregate);
-        res.status(200).json(movies);
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
+            const movies = await Movie.aggregate(aggregate);
+            res.status(200).json(movies);
+        } catch (err) {
+            res.status(500).json({ success: false, message: err.message });
+        }
     });
-
-
 
 // Get specific movie with aggregation logic
 router.route('/movies/:movieparameter')
@@ -230,7 +253,6 @@ router.route('/movies/:movieparameter')
         try {
             let matchCondition = {};
             if (mongoose.Types.ObjectId.isValid(req.params.movieparameter)) {
-                // FIX: Added 'new' keyword so Mongoose doesn't crash on lookup
                 matchCondition = { _id: new mongoose.Types.ObjectId(req.params.movieparameter) };
             } else {
                 matchCondition = { title: req.params.movieparameter };
@@ -245,6 +267,12 @@ router.route('/movies/:movieparameter')
                             localField: "_id", 
                             foreignField: "movieId", 
                             as: "reviews" 
+                        }
+                    },
+                    // FIX: Added the math field to calculate the specific movie's average!
+                    {
+                        $addFields: {
+                            avgRating: { $avg: '$reviews.rating' }
                         }
                     }
                 ]);
